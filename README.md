@@ -1,3 +1,9 @@
+# ⚠️ **Warning: SDK is in Alpha** ⚠️
+
+> **This SDK is currently in a alpha phase and is not even close to production-ready.**
+> **Don't use this library at least until it gets to beta. Breaking changes and incomplete functionality may be present.**
+> Contributions and feedback are welcome as we work toward a stable release.
+
 # Textfly SDK
 
 The TextFly SDK provides a simple interface for interacting with the TextFly API, enabling operations like creating, updating, retrieving, and deleting contacts. This SDK is intended for seamless integration into multi-tenant applications where each account has unique access to contact data.
@@ -10,6 +16,8 @@ To use the SDK, you’ll need:
 
 * The base URL of the TextFly API.
 * An API key for authenticating requests.
+
+Initialize the client:
 
     use Ryantxr\Textfly\Sdk\Client;
 
