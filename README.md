@@ -6,7 +6,7 @@
 
 # Textfly SDK
 
-The TextFly SDK provides a simple interface for interacting with the TextFly API, enabling operations like creating, updating, retrieving, and deleting contacts. This SDK is intended for seamless integration into multi-tenant applications where each account has unique access to contact data.
+The TextFly SDK provides an interface for interacting with the TextFly API, enabling operations like creating, updating, retrieving, and deleting contacts. This SDK is intended for seamless integration into multi-tenant applications where each account has unique access to contact data.
 
     composer require ryantxr/textfly-sdk
 
