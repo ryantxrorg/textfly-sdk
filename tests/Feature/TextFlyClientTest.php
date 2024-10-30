@@ -13,7 +13,7 @@ class TextFlyClientTest extends TestCase
     {
         $client = new TextflyClient($this->config->url, $this->config->api_key);
         $contacts = $client->getContacts(1);
-
+print_r($contacts);
         $this->assertIsArray($contacts);
         $this->assertArrayHasKey('data', $contacts);
     }
@@ -22,6 +22,18 @@ class TextFlyClientTest extends TestCase
     {
         $client = new TextflyClient($this->config->url, $this->config->api_key);
         $contact = $client->getContact(1, 1);
+        $this->assertIsArray($contact);
+        $this->assertArrayHasKey('phone', $contact);
+    }
+
+    /**
+     * phpunit tests/Feature/TextFlyClientTest.php --filter=testFindContact
+     */
+    public function testFindContact()
+    {
+        $client = new TextflyClient($this->config->url, $this->config->api_key);
+        $phone = '7282441010';
+        $contact = $client->findContactByPhone(1, $phone);
         $this->assertIsArray($contact);
         $this->assertArrayHasKey('phone', $contact);
     }
@@ -89,7 +101,7 @@ class TextFlyClientTest extends TestCase
 
     public function setup(): void
     {
-        $configFile = __DIR__ . '/' . 'client_config.json';
+        $configFile = __DIR__ . '/' . 'client-config.json';
         if ( ! file_exists($configFile) ) {
             die("Config file {$configFile} not found");
         }

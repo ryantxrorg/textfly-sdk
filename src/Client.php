@@ -58,6 +58,11 @@ class Client
         return $this->request('GET', "/api/v1/req/{$accountId}/contacts/{$contactId}");
     }
 
+    public function findContactByPhone(int $accountId, string $phone)
+    {
+        return $this->request('GET', "/api/v1/req/{$accountId}/contacts/phone/{$phone}");
+    }
+
     public function createContact(int $accountId, array $data)
     {
         return $this->request('PUT', "/api/v1/req/{$accountId}/contacts", [
