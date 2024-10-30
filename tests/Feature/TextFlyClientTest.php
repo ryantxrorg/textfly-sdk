@@ -9,10 +9,11 @@ This is to test the actual backend.
 class TextFlyClientTest extends TestCase
 {
     protected $config; //'set me in client-config.json';
+    protected $accountId = 1;
     public function testGetContacts()
     {
         $client = new TextflyClient($this->config->url, $this->config->api_key);
-        $contacts = $client->getContacts(1);
+        $contacts = $client->getContacts($this->accountId);
 print_r($contacts);
         $this->assertIsArray($contacts);
         $this->assertArrayHasKey('data', $contacts);
@@ -21,7 +22,7 @@ print_r($contacts);
     public function testGetContact()
     {
         $client = new TextflyClient($this->config->url, $this->config->api_key);
-        $contact = $client->getContact(1, 1);
+        $contact = $client->getContact($this->accountId, 1);
         $this->assertIsArray($contact);
         $this->assertArrayHasKey('phone', $contact);
     }
@@ -33,14 +34,14 @@ print_r($contacts);
     {
         $client = new TextflyClient($this->config->url, $this->config->api_key);
         $phone = '7282441010';
-        $contact = $client->findContactByPhone(1, $phone);
+        $contact = $client->findContactByPhone($this->accountId, $phone);
         $this->assertIsArray($contact);
         $this->assertArrayHasKey('phone', $contact);
     }
 
     public function testCreateContact()
     {
-        $accountId = 1;
+        $accountId = $this->accountId;
         $data = [
             'phone' => '7282441010',
             'first_name' => 'Scotty',
@@ -69,7 +70,7 @@ print_r($contacts);
 
     public function testDeleteContact()
     {
-        $accountId = 1;
+        $accountId = $this->accountId;
         $data = [
             'phone' => '7282441010',
             'first_name' => 'Scotty',
@@ -98,6 +99,61 @@ print_r($contacts);
             $this->assertStringContainsString('Contact not found', $e->getMessage()); // Verify the error message
         }
     }
+    // phpunit tests/Feature/TextFlyClientTest.php --filter=testCreateContactList
+    public function testCreateContactList()
+    {
+        $accountId = $this->accountId;
+        $client = new TextflyClient($this->config->url, $this->config->api_key);
+
+        $result = $client->createContactList($accountId, ['name' => __METHOD__]);
+        $this->assertIsArray($result);
+        $this->assertEquals(__METHOD__, $result['name']);
+        $this->assertArrayHasKey('id', $result);
+        $this->assertTrue($result['id'] > 0);
+        
+        $clist = $client->getContactList($accountId, $result['id']);
+        $this->assertIsArray($clist);
+        $this->assertEquals(__METHOD__, $clist['name']);
+        $this->assertArrayHasKey('id', $clist);
+        $this->assertEquals($result['id'], $clist['id']);
+
+        $list = $client->getContactLists($accountId);
+        $wasFound = false;
+        foreach ( $list['data'] as $data ) {
+            if ( $data['id'] == $result['id'] ) $wasFound = true;
+        }
+        $this->assertTrue($wasFound);
+    }
+
+
+
+    // phpunit tests/Feature/TextFlyClientTest.php --filter=testCreateContactList
+    public function testDeleteContactList()
+    {
+        $accountId = $this->accountId;
+        $client = new TextflyClient($this->config->url, $this->config->api_key);
+
+        $result = $client->createContactList($accountId, ['name' => __METHOD__]);
+        $this->assertIsArray($result);
+        $this->assertEquals(__METHOD__, $result['name']);
+        $this->assertArrayHasKey('id', $result);
+        $this->assertTrue($result['id'] > 0);
+        $list = $client->getContactLists($accountId);
+        $wasFound = false;
+        foreach ( $list['data'] as $data ) {
+            if ( $data['id'] == $result['id'] ) $wasFound = true;
+        }
+        $this->assertTrue($wasFound);
+    
+        $client->deleteContactList($accountId, $result['id']);
+        $list = $client->getContactLists($accountId);
+        $wasFound = false;
+        foreach ( $list['data'] as $data ) {
+            if ( $data['id'] == $result['id'] ) $wasFound = true;
+        }
+        $this->assertFalse($wasFound);
+    }
+
 
     public function setup(): void
     {

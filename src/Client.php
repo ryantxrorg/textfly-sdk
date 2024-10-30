@@ -81,4 +81,73 @@ class Client
     {
         return $this->request('DELETE', "/api/v1/req/{$accountId}/contacts/{$contactId}");
     }
+
+    /**
+     * Get all contact lists with pagination.
+     *
+     * @param int $accountId
+     * @param int $page
+     * @param int $perPage
+     * @return array
+     * @throws ApiException
+     */
+    public function getContactLists(int $accountId, int $page = 1, int $perPage = 10): array
+    {
+        return $this->request('GET', "/api/v1/req/{$accountId}/contact_lists", [
+            'query' => ['page' => $page, 'per_page' => $perPage]
+        ]);
+    }
+
+    /**
+     * Get a single contact list by ID.
+     *
+     * @param int $id
+     * @return array
+     * @throws ApiException
+     */
+    public function getContactList(int $accountId, int $id): array
+    {
+        return $this->request('GET', "/api/v1/req/{$accountId}/contact_lists/{$id}");
+    }
+
+    /**
+     * Create a new contact list.
+     *
+     * @param array $data
+     * @return array
+     * @throws ApiException
+     */
+    public function createContactList(int $accountId, array $data): array
+    {
+        return $this->request('PUT', "/api/v1/req/{$accountId}/contact_lists", [
+            'json' => $data
+        ]);
+    }
+
+    /**
+     * Update an existing contact list.
+     *
+     * @param int $id
+     * @param array $data
+     * @return array
+     * @throws ApiException
+     */
+    public function updateContactList(int $accountId, int $id, array $data): array
+    {
+        return $this->request('POST', "/api/v1/req/{$accountId}/contact_lists/{$id}", [
+            'json' => $data
+        ]);
+    }
+
+    /**
+     * Delete a contact list by ID.
+     *
+     * @param int $id
+     * @return void
+     * @throws ApiException
+     */
+    public function deleteContactList(int $accountId, int $id): void
+    {
+        $this->request('DELETE', "/api/v1/req/{$accountId}/contact_lists/{$id}");
+    }
 }
