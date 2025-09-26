@@ -6,105 +6,112 @@
 
 # Textfly SDK
 
-The TextFly SDK provides an interface for interacting with the TextFly API, enabling operations like creating, updating, retrieving, and deleting contacts. This SDK is intended for seamless integration into multi-tenant applications where each account has unique access to contact data.
+The TextFly SDK wraps the `/api/v1/req/{accountId}` endpoints documented in `docs/api.md` and exposes typed helpers for contacts, contact lists, list memberships, and scheduled SMS campaigns.
 
     composer require ryantxr/textfly-sdk
 
-## Configuration
+## Quick Start
 
-To use the SDK, you’ll need:
+```php
+use TextFly\Sdk\Client;
 
-* The base URL of the TextFly API.
-* An API key for authenticating requests.
+$client = new Client('https://api.textfly.local', 'your_api_key');
+```
 
-Initialize the client:
+The base URL should point at the host that serves `/api/v1`. The SDK automatically adds the `Authorization: Bearer` and `Accept: application/json` headers specified by the API reference.
 
-    use TextFly\Sdk\Client;
+## Services
 
-    $client = new Client('https://api_endpoint', 'your_api_key');
+- Contacts: list, fetch, find by phone, upsert, patch update, delete.
+- Contact lists: list, fetch, create, update, delete using the hyphenated routes (`contact-lists`).
+- Contact list memberships: list members, attach, and detach contacts via `contact-list-join`.
+- Scheduled messages: list, create, update, delete, and trigger the `/send` action.
 
-## Usage
+Each service is available through a dedicated accessor on the client (e.g. `$client->contacts()`), while backward-compatible shortcuts such as `$client->getContacts()` remain available.
 
-Initialize the Client
+## Usage Examples
 
-Create a new instance of the SDK client by providing the base URL and your API key.
+### Contacts
 
-    $client = new Client('https://api_endpoint', 'your_api_key');
+```php
+$contacts = $client->contacts()->list($accountId, 1, 25);
+$contact = $client->contacts()->get($accountId, $contactId);
+$byPhone = $client->contacts()->findByPhone($accountId, '2125556789');
 
-## List Contacts
+$contact = $client->contacts()->upsert($accountId, [
+    'phone' => '2125556789',
+    'first_name' => 'Alice',
+    'last_name' => 'Johnson',
+]);
 
-Retrieve a paginated list of contacts for a specific account.
+$updated = $client->contacts()->update($accountId, $contact['id'], [
+    'optin' => true,
+]);
 
-    $accountId = 1;
-    $contacts = $client->getContacts($accountId, $page = 1, $perPage = 10);
+$client->contacts()->delete($accountId, $contact['id']);
+```
 
-    print_r($contacts);
+### Contact Lists
 
-## Retrieve a Contact
+```php
+$lists = $client->contactLists()->list($accountId);
+$list = $client->contactLists()->create($accountId, ['name' => 'VIP Customers']);
 
-Get details of a specific contact by its ID.
+$client->contactLists()->update($accountId, $list['id'], ['name' => 'VIPs']);
+$client->contactLists()->delete($accountId, $list['id']);
+```
 
-    $contactId = 123;
-    $contact = $client->getContact($accountId, $contactId);
+### Contact List Memberships
 
-    print_r($contact);
+```php
+$members = $client->contactListMemberships()->list($accountId, $listId);
 
-## Create a Contact
+$client->contactListMemberships()->attach($accountId, $contactId, $listId);
+$client->contactListMemberships()->detach($accountId, $listId, $contactId);
+```
 
-Add a new contact to the account.
+### Scheduled Messages
 
-    $data = [
-        'phone' => '212-555-6789',
-        'first_name' => 'Alice',
-        'last_name' => 'Johnson',
-        'optin' => 1,
-        'accept_tos' => 1,
-    ];
+```php
+$message = $client->scheduledMessages()->create($accountId, [
+    'title' => 'Weekly Update',
+    'body' => 'See you on Friday!',
+    'contact_list_id' => $listId,
+    'scheduled_at' => '2024-10-18T15:00:00Z',
+    'is_scheduled' => true,
+]);
 
-    $contact = $client->createContact($accountId, $data);
+$client->scheduledMessages()->update($accountId, $message['id'], [
+    'title' => 'Updated Weekly Update',
+]);
 
-    print_r($contact);
+$client->scheduledMessages()->send($accountId, $message['id']); // returns null on HTTP 202
+$client->scheduledMessages()->delete($accountId, $message['id']);
+```
 
-## Update a Contact
+## Error Handling
 
-Update an existing contact’s information.
+All helpers throw `TextFly\Sdk\Exceptions\ApiException` when the API responds with an error or invalid JSON. The exception code carries the HTTP status when available.
 
-    $contactId = 123;
-    $data = [
-        'first_name' => 'Alicia',
-        'optin' => 0,
-    ];
+```php
+use TextFly\Sdk\Exceptions\ApiException;
 
-    $updatedContact = $client->updateContact($accountId, $contactId, $data);
-
-    print_r($updatedContact);
-
-## Delete a Contact
-
-Soft delete a contact, which allows it to be restored in the future if needed.
-
-    $client->deleteContact($accountId, $contactId);
-    echo "Contact deleted successfully.";
+try {
+    $client->contacts()->upsert($accountId, ['phone' => 'invalid']);
+} catch (ApiException $e) {
+    // Log $e->getMessage() and $e->getCode()
+}
+```
 
 ## Testing
 
-The SDK includes tests to verify each method’s functionality.
+Install dependencies with `composer install` and run the PHPUnit suite:
 
-There is a small setup required to run some tests.
+    ./vendor/bin/phpunit tests/Unit
 
-    cd tests/Feature
-    cp sample.client-config.json client-config.json
+Unit tests rely on Guzzle's `MockHandler` and cover request construction for the documented endpoints. Optional feature tests live under `tests/Feature`; copy `sample.client-config.json` to `client-config.json` and populate it with valid credentials before running them against a live environment.
 
-Edit client-config.json and add a testing api key and a testing url.
-These are not unit tests. They actually connect to a backend and send real api calls.
-
-To run all the tests, use:
-
-    vendor/bin/phpunit tests
-
-To run the unit tests only, use:
-
-    vendor/bin/phpunit tests/Unit
+    ./vendor/bin/phpunit tests/Feature --filter TextFlyClientTest
 
 ## Contributing
 
