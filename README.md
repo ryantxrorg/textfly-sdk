@@ -10,6 +10,11 @@ The TextFly SDK wraps the `/api/v1/req/{accountId}` endpoints documented in `doc
 
     composer require ryantxr/textfly-sdk
 
+## Requirements
+
+- PHP 7.4 or newer
+- Guzzle 7 (installed automatically via Composer)
+
 ## Quick Start
 
 ```php

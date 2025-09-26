@@ -72,7 +72,10 @@ class Client
         return $this->setHttpClient($client);
     }
 
-    public function request(string $method, string $uri, array $options = []): mixed
+    /**
+     * @return array|null
+     */
+    public function request(string $method, string $uri, array $options = []): ?array
     {
         $options['headers'] = array_merge([
             'Authorization' => sprintf('Bearer %s', $this->apiKey),
@@ -94,7 +97,8 @@ class Client
 
             return $decoded;
         } catch (RequestException $exception) {
-            $statusCode = $exception->getResponse()?->getStatusCode() ?? 0;
+            $response = $exception->getResponse();
+            $statusCode = $response ? $response->getStatusCode() : 0;
             $message = $this->resolveErrorMessage($exception);
 
             throw new ApiException($message, $statusCode, $exception);

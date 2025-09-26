@@ -13,7 +13,10 @@ abstract class AbstractApi
         $this->client = $client;
     }
 
-    protected function request(string $method, string $uri, array $options = []): mixed
+    /**
+     * @return array|null
+     */
+    protected function request(string $method, string $uri, array $options = []): ?array
     {
         return $this->client->request($method, $uri, $options);
     }
