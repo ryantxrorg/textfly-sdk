@@ -1,7 +1,7 @@
 <?php
 
 use PHPUnit\Framework\TestCase;
-use Ryantxr\Textfly\Sdk\Client as TextflyClient;
+use TextFly\Sdk\Client as TextflyClient;
 
 /*
 This is to test the actual backend.
@@ -93,7 +93,7 @@ print_r($contacts);
         try {
             $client->getContact($accountId, $contactId);
             $this->fail('Expected ApiException was not thrown'); // Fail if no exception is thrown
-        } catch (Ryantxr\Textfly\Sdk\Exceptions\ApiException $e) {
+        } catch (\TextFly\Sdk\Exceptions\ApiException $e) {
             // throws a 404 exception, handle it, expect it, test it.
             $this->assertEquals(404, $e->getCode()); // Assert that the exception code is 404
             $this->assertStringContainsString('Contact not found', $e->getMessage()); // Verify the error message

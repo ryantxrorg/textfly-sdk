@@ -1,145 +1,143 @@
 <?php
 
-use PHPUnit\Framework\TestCase;
-use Ryantxr\Textfly\Sdk\Client as TextflyClient;
+namespace TextFly\Sdk\Tests\Unit;
+
 use GuzzleHttp\Client as HttpClient;
+use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Handler\MockHandler;
+use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Middleware;
+use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
+use PHPUnit\Framework\TestCase;
+use TextFly\Sdk\Client;
+use TextFly\Sdk\Exceptions\ApiException;
 
 class ClientTest extends TestCase
 {
-    protected function tearDown(): void
+    private const BASE_URL = 'https://api.example.test';
+
+    private function createClient(array $responses, array &$history): Client
     {
-        \Mockery::close();
+        $history = [];
+
+        $mock = new MockHandler($responses);
+        $historyMiddleware = Middleware::history($history);
+
+        $handlerStack = HandlerStack::create($mock);
+        $handlerStack->push($historyMiddleware);
+
+        $httpClient = new HttpClient(['handler' => $handlerStack]);
+
+        return new Client(self::BASE_URL, 'api-key', $httpClient);
     }
 
-    public function testCreateContact()
+    public function testContactsListSendsPaginationQuery(): void
     {
-        // Arrange: Set up the expected response data and the client mock
-        $mockResponseData = [
-            'id' => 1,
-            'phone' => '212-555-6789',
-            'first_name' => 'Alice',
-            'last_name' => 'Johnson',
-            'optin' => 1,
-            'optin_at' => '2023-01-01T12:00:00Z',
-            'accept_tos' => 1,
-            'accept_tos_at' => '2023-01-01T12:00:00Z'
-        ];
+        $expected = ['data' => [['id' => 1]]];
+        $history = [];
+        $client = $this->createClient([
+            new Response(200, [], json_encode($expected)),
+        ], $history);
 
-        $mockResponse = new Response(201, [], json_encode($mockResponseData));
+        $result = $client->getContacts(42, 2, 50);
 
-        $httpClientMock = \Mockery::mock(HttpClient::class);
-        $httpClientMock->shouldReceive('request')
-            ->once()
-            ->with('PUT', 'https://textfl8.local/api/v1/req/1/contacts', Mockery::any())
-            ->andReturn($mockResponse);
+        $this->assertSame($expected, $result);
+        $this->assertCount(1, $history);
 
-        // Act: Instantiate the Client and call createContact
-        $client = new TextflyClient('https://textfl8.local', 'your_api_key');
-        $client->setClient($httpClientMock); // Inject mock
-        $result = $client->createContact(1, [
-            'phone' => '212-555-6789',
-            'first_name' => 'Alice',
-            'last_name' => 'Johnson',
-            'optin' => 1,
-            'accept_tos' => 1,
+        /** @var Request $request */
+        $request = $history[0]['request'];
+        $this->assertSame('GET', $request->getMethod());
+        $this->assertSame('/api/v1/req/42/contacts', $request->getUri()->getPath());
+        parse_str($request->getUri()->getQuery(), $queryParams);
+        $this->assertSame(['page' => '2', 'per_page' => '50'], $queryParams);
+    }
+
+    public function testContactListCreateUsesHyphenatedEndpoint(): void
+    {
+        $expected = ['id' => 10, 'name' => 'Welcome'];
+        $history = [];
+        $client = $this->createClient([
+            new Response(201, [], json_encode($expected)),
+        ], $history);
+
+        $result = $client->createContactList(7, ['name' => 'Welcome']);
+
+        $this->assertSame($expected, $result);
+        $this->assertCount(1, $history);
+
+        /** @var Request $request */
+        $request = $history[0]['request'];
+        $this->assertSame('PUT', $request->getMethod());
+        $this->assertSame('/api/v1/req/7/contact-lists', $request->getUri()->getPath());
+        $this->assertSame('application/json', $request->getHeaderLine('Content-Type'));
+
+        $body = (string) $request->getBody();
+        $this->assertSame(['name' => 'Welcome'], json_decode($body, true));
+    }
+
+    public function testAttachContactToListSendsDocumentedPayload(): void
+    {
+        $history = [];
+        $client = $this->createClient([
+            new Response(201, [], json_encode(['message' => 'Contact added to contact list'])),
+        ], $history);
+
+        $result = $client->attachContactToList(3, 9, 21);
+
+        $this->assertSame(['message' => 'Contact added to contact list'], $result);
+        $this->assertCount(1, $history);
+
+        /** @var Request $request */
+        $request = $history[0]['request'];
+        $this->assertSame('PUT', $request->getMethod());
+        $this->assertSame('/api/v1/req/3/contact-list-join', $request->getUri()->getPath());
+
+        $payload = json_decode((string) $request->getBody(), true);
+        $this->assertSame([
+            'contact_id' => 9,
+            'contact_list_id' => 21,
+        ], $payload);
+    }
+
+    public function testSendScheduledMessageHandlesEmptyResponse(): void
+    {
+        $history = [];
+        $client = $this->createClient([
+            new Response(202, []),
+        ], $history);
+
+        $result = $client->sendScheduledMessage(11, 5);
+
+        $this->assertNull($result);
+        $this->assertCount(1, $history);
+
+        /** @var Request $request */
+        $request = $history[0]['request'];
+        $this->assertSame('POST', $request->getMethod());
+        $this->assertSame('/api/v1/req/11/scheduled-messages/5/send', $request->getUri()->getPath());
+    }
+
+    public function testThrowsApiExceptionWithValidationMessage(): void
+    {
+        $request = new Request('PUT', self::BASE_URL . '/api/v1/req/2/contacts');
+        $response = new Response(422, [], json_encode(['message' => 'The given data was invalid.']));
+
+        $mock = new MockHandler([
+            static function () use ($request, $response) {
+                throw new RequestException('Unprocessable', $request, $response);
+            },
         ]);
 
-        // Assert: Check if the result matches the expected response
-        $this->assertEquals($mockResponseData, $result);
+        $handlerStack = HandlerStack::create($mock);
+        $httpClient = new HttpClient(['handler' => $handlerStack]);
+
+        $client = new Client(self::BASE_URL, 'api-key', $httpClient);
+
+        $this->expectException(ApiException::class);
+        $this->expectExceptionMessage('The given data was invalid.');
+        $this->expectExceptionCode(422);
+
+        $client->createContact(2, ['phone' => 'abc']);
     }
-
-    public function testUpdateContact()
-    {
-        // Arrange: Set up the expected response data and the client mock
-        $mockResponseData = [
-            'id' => 1,
-            'phone' => '212-555-6789',
-            'first_name' => 'Alice',
-            'last_name' => 'Johnson',
-            'optin' => 0,
-            'optin_at' => null,
-            'accept_tos' => 0,
-            'accept_tos_at' => null
-        ];
-
-        $mockResponse = new Response(200, [], json_encode($mockResponseData));
-
-        $httpClientMock = \Mockery::mock(HttpClient::class);
-        $httpClientMock->shouldReceive('request')
-            ->once()
-            ->with('POST', 'https://textfl8.local/api/v1/req/1/contacts/1', Mockery::any())
-            ->andReturn($mockResponse);
-
-        // Act: Instantiate the Client and call updateContact
-        $client = new TextflyClient('https://textfl8.local', 'your_api_key');
-        $client->setClient($httpClientMock); // Inject mock
-        $result = $client->updateContact(1, 1, [
-            'optin' => 0,
-            'accept_tos' => 0,
-        ]);
-
-        // Assert: Check if the result matches the expected response
-        $this->assertEquals($mockResponseData, $result);
-    }
-
-    public function _testDeleteContactNotFound1()
-    {
-        // Arrange: Set up a 404 response and a mock HTTP client
-        $mockResponse = new Response(404, [], json_encode(['error' => 'Contact not found.']));
-
-        $httpClientMock = \Mockery::mock(HttpClient::class);
-        $httpClientMock->shouldReceive('request')
-            ->once()
-            ->with('DELETE', 'https://textfl8.local/api/v1/req/1/contacts/999', Mockery::any())
-            ->andReturn($mockResponse);
-
-        // Act: Instantiate the Client, set the mock client, and call deleteContact
-        $client = new TextflyClient('https://textfl8.local', 'your_api_key');
-        $client->setClient($httpClientMock); // Use the new setClient method to inject mock
-
-        // Assert: Expect an ApiException due to 404 Not Found
-        $this->expectException(\Ryantxr\Textfly\Sdk\Exceptions\ApiException::class);
-        $this->expectExceptionMessage('Contact not found.');
-
-        // Try to delete a non-existent contact
-        $client->deleteContact(1, 999);
-    }
-
-    public function testDeleteContactNotFound()
-    {
-        $this->expectException(\Ryantxr\Textfly\Sdk\Exceptions\ApiException::class);
-        $this->expectExceptionMessage('Contact not found.');
-
-        $this->performDeleteContactNotFound();
-    }
-
-    private function performDeleteContactNotFound()
-    {
-        // Arrange: Set up a 404 ClientException to be thrown by the mock HTTP client
-        $mockResponse = new \GuzzleHttp\Psr7\Response(404, [], json_encode(['error' => 'Contact not found.']));
-        $mockRequest = new \GuzzleHttp\Psr7\Request('DELETE', 'https://textfl8.local/api/v1/req/1/contacts/999');
-        $clientException = new \GuzzleHttp\Exception\ClientException('Contact not found.', $mockRequest, $mockResponse);
-        
-        $httpClientMock = \Mockery::mock(HttpClient::class);
-        $httpClientMock->shouldReceive('request')
-            ->once()
-            ->with('DELETE', 'https://textfl8.local/api/v1/req/1/contacts/999', \Mockery::any())
-            ->andThrow($clientException); // Throw ClientException instead of returning a response
-    
-        // Act: Instantiate the Client, set the mock client, and call deleteContact
-        $client = new TextflyClient('https://textfl8.local', 'your_api_key');
-        $client->setClient($httpClientMock); // Use the new setClient method to inject mock
-    
-        // Assert: Expect an ApiException due to 404 Not Found
-        // $this->expectException(\Ryantxr\Textfly\Sdk\Exceptions\ApiException::class);
-        // $this->expectExceptionMessage('Contact not found.');
-    
-        // Try to delete a non-existent contact, which should throw an ApiException
-        /*
-        $r = $client->deleteContact(1, 999);
-        print_r($r);
-        */
-        $client->deleteContact(1, 999);
-    }    
 }

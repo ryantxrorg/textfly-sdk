@@ -1,0 +1,1018 @@
+openapi: 3.0.3
+info:
+  title: TextFly API
+  version: v1
+  description: |
+    REST API for managing TextFly contacts, contact lists, list memberships, and
+    scheduled SMS campaigns. All endpoints require a Laravel Sanctum personal
+    access token provided via the `Authorization: Bearer {token}` header and are
+    scoped by account.
+servers:
+  - url: https://api.textfly.local/api/v1
+    description: Example production server
+  - url: /api/v1
+    description: Relative path for local development
+security:
+  - bearerAuth: []
+tags:
+  - name: Contacts
+    description: Manage contacts belonging to an account.
+  - name: Contact Lists
+    description: Manage named contact lists per account.
+  - name: Contact List Memberships
+    description: Attach or detach contacts from contact lists.
+  - name: Scheduled Messages
+    description: Schedule and send outbound SMS campaigns.
+paths:
+  /req/{accountId}/contacts:
+    get:
+      tags: [Contacts]
+      summary: List contacts
+      operationId: listContacts
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Paginated contacts for the account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactCollection'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    put:
+      tags: [Contacts]
+      summary: Create or update a contact by phone number
+      operationId: upsertContact
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactUpsertRequest'
+      responses:
+        '201':
+          description: Contact created or updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /req/{accountId}/contacts/{contactId}:
+    get:
+      tags: [Contacts]
+      summary: Retrieve a contact
+      operationId: getContact
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/ContactId'
+      responses:
+        '200':
+          description: Contact details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Contacts]
+      summary: Update a contact
+      operationId: updateContact
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/ContactId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactUpdateRequest'
+      responses:
+        '200':
+          description: Updated contact.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags: [Contacts]
+      summary: Delete a contact
+      operationId: deleteContact
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/ContactId'
+      responses:
+        '200':
+          description: Contact deleted successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /req/{accountId}/contacts/phone/{phone}:
+    get:
+      tags: [Contacts]
+      summary: Find a contact by phone number
+      operationId: findContactByPhone
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/PhoneNumber'
+      responses:
+        '200':
+          description: Contact details for the matching phone number.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /req/{accountId}/contact-lists:
+    get:
+      tags: [Contact Lists]
+      summary: List contact lists
+      operationId: listContactLists
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Paginated contact lists for the account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactListCollection'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    put:
+      tags: [Contact Lists]
+      summary: Create a contact list
+      operationId: createContactList
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactListCreateRequest'
+      responses:
+        '201':
+          description: Contact list created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /req/{accountId}/contact-lists/{contactListId}:
+    get:
+      tags: [Contact Lists]
+      summary: Retrieve a contact list
+      operationId: getContactList
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/ContactListId'
+      responses:
+        '200':
+          description: Contact list details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Contact Lists]
+      summary: Update a contact list
+      operationId: updateContactList
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/ContactListId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactListUpdateRequest'
+      responses:
+        '200':
+          description: Updated contact list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags: [Contact Lists]
+      summary: Delete a contact list
+      operationId: deleteContactList
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/ContactListId'
+      responses:
+        '204':
+          description: Contact list deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /req/{accountId}/contact-list-join:
+    put:
+      tags: [Contact List Memberships]
+      summary: Attach a contact to a contact list
+      operationId: attachContactToList
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactListMembershipRequest'
+      responses:
+        '201':
+          description: Contact attached to the list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /req/{accountId}/contact-list-join/{contactListId}:
+    get:
+      tags: [Contact List Memberships]
+      summary: List members of a contact list
+      operationId: listContactListMembers
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/ContactListId'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Paginated contacts in the list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactDetailCollection'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /req/{accountId}/contact-list-join/{contactListId}/{contactId}:
+    delete:
+      tags: [Contact List Memberships]
+      summary: Detach a contact from a list
+      operationId: detachContactFromList
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/ContactListId'
+        - $ref: '#/components/parameters/ContactId'
+      responses:
+        '204':
+          description: Contact detached from the list.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /req/{accountId}/scheduled-messages:
+    get:
+      tags: [Scheduled Messages]
+      summary: List scheduled messages
+      operationId: listScheduledMessages
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Paginated scheduled messages.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduledMessageCollection'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Scheduled Messages]
+      summary: Create a scheduled message
+      operationId: createScheduledMessage
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduledMessageCreateRequest'
+      responses:
+        '201':
+          description: Scheduled message created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduledMessage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /req/{accountId}/scheduled-messages/{scheduledMessageId}:
+    put:
+      tags: [Scheduled Messages]
+      summary: Update a scheduled message
+      operationId: updateScheduledMessage
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/ScheduledMessageId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduledMessageUpdateRequest'
+      responses:
+        '200':
+          description: Updated scheduled message.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduledMessage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags: [Scheduled Messages]
+      summary: Delete a scheduled message
+      operationId: deleteScheduledMessage
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/ScheduledMessageId'
+      responses:
+        '204':
+          description: Scheduled message deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /req/{accountId}/scheduled-messages/{scheduledMessageId}/send:
+    post:
+      tags: [Scheduled Messages]
+      summary: Queue a scheduled message for sending
+      operationId: sendScheduledMessage
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/ScheduledMessageId'
+      responses:
+        '202':
+          description: Message accepted for asynchronous delivery.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Sanctum token
+  parameters:
+    AccountId:
+      name: accountId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+      description: Numeric identifier of the authenticated account context.
+    ContactId:
+      name: contactId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+      description: Unique identifier of the contact within the account.
+    ContactListId:
+      name: contactListId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+      description: Identifier of the contact list scoped to the account.
+    ScheduledMessageId:
+      name: scheduledMessageId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+      description: Identifier of the scheduled message scoped to the account.
+    PhoneNumber:
+      name: phone
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Phone number to search for. Raw digits are accepted and normalized server-side.
+    PerPage:
+      name: per_page
+      in: query
+      description: Number of items per page (max 100).
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+    Page:
+      name: page
+      in: query
+      description: 1-based page number.
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+  responses:
+    Unauthorized:
+      description: Authentication failed or missing token.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Account middleware denied access to the resource.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found for the account scope.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationError:
+      description: Request validation failed.
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/ErrorResponse'
+              - $ref: '#/components/schemas/ValidationErrorResponse'
+    ServerError:
+      description: Unexpected server error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    PaginationLink:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          nullable: true
+        label:
+          type: string
+        active:
+          type: boolean
+      required: [label, active]
+    Pagination:
+      type: object
+      properties:
+        current_page:
+          type: integer
+          example: 1
+        per_page:
+          type: integer
+          example: 10
+        from:
+          type: integer
+          nullable: true
+        to:
+          type: integer
+          nullable: true
+        total:
+          type: integer
+          example: 123
+        last_page:
+          type: integer
+          example: 13
+        next_page_url:
+          type: string
+          format: uri
+          nullable: true
+        prev_page_url:
+          type: string
+          format: uri
+          nullable: true
+        first_page_url:
+          type: string
+          format: uri
+          nullable: true
+        last_page_url:
+          type: string
+          format: uri
+          nullable: true
+        path:
+          type: string
+          format: uri
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaginationLink'
+      required:
+        - current_page
+        - per_page
+        - total
+        - last_page
+        - path
+        - links
+    ContactSummary:
+      type: object
+      properties:
+        phone:
+          type: string
+          example: '+15551234567'
+        first_name:
+          type: string
+          example: Ada
+        last_name:
+          type: string
+          example: Lovelace
+      required: [phone, first_name, last_name]
+    ContactDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 42
+        phone:
+          type: string
+          example: '+15551234567'
+        first_name:
+          type: string
+          example: Ada
+        last_name:
+          type: string
+          example: Lovelace
+        active:
+          type: boolean
+          nullable: true
+        user1:
+          type: string
+          nullable: true
+          maxLength: 20
+        optin:
+          type: boolean
+          nullable: true
+        optin_at:
+          type: string
+          format: date-time
+          nullable: true
+        accept_tos:
+          type: boolean
+          nullable: true
+        accept_tos_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - phone
+        - first_name
+        - last_name
+    ContactUpsertRequest:
+      type: object
+      required:
+        - phone
+        - first_name
+        - last_name
+      properties:
+        phone:
+          type: string
+          description: Raw or formatted phone number; normalized to E.164.
+        first_name:
+          type: string
+          maxLength: 255
+        last_name:
+          type: string
+          maxLength: 255
+        active:
+          type: boolean
+          nullable: true
+        user1:
+          type: string
+          nullable: true
+          maxLength: 20
+        optin:
+          type: boolean
+          nullable: true
+        accept_tos:
+          type: boolean
+          nullable: true
+    ContactUpdateRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        active:
+          type: boolean
+          nullable: true
+        user1:
+          type: string
+          nullable: true
+          maxLength: 20
+        optin:
+          type: boolean
+          nullable: true
+        accept_tos:
+          type: boolean
+          nullable: true
+      description: Any subset of contact fields to update.
+    ContactCollection:
+      allOf:
+        - $ref: '#/components/schemas/Pagination'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/ContactSummary'
+          required:
+            - data
+    ContactDetailCollection:
+      allOf:
+        - $ref: '#/components/schemas/Pagination'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/ContactDetail'
+          required:
+            - data
+    ContactList:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 7
+        name:
+          type: string
+          example: VIP Customers
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - name
+    ContactListCreateRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          maxLength: 255
+    ContactListUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+      description: Fields to update on the contact list.
+    ContactListCollection:
+      allOf:
+        - $ref: '#/components/schemas/Pagination'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/ContactList'
+          required:
+            - data
+    ContactListMembershipRequest:
+      type: object
+      required:
+        - contact_id
+        - contact_list_id
+      properties:
+        contact_id:
+          type: integer
+          format: int64
+        contact_list_id:
+          type: integer
+          format: int64
+    ScheduledMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 512
+        account_id:
+          type: integer
+          format: int64
+        contact_list_id:
+          type: integer
+          format: int64
+          nullable: true
+        title:
+          type: string
+        body:
+          type: string
+        optout_text:
+          type: string
+        scheduled_at:
+          type: string
+          format: date-time
+          nullable: true
+        approved_at:
+          type: string
+          format: date-time
+          nullable: true
+        processing_started_at:
+          type: string
+          format: date-time
+          nullable: true
+        processing_owner:
+          type: string
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        billable_at:
+          type: string
+          format: date-time
+          nullable: true
+        charges_computed_at:
+          type: string
+          format: date-time
+          nullable: true
+        cancelled_at:
+          type: string
+          format: date-time
+          nullable: true
+        cancelled_reason:
+          type: string
+          nullable: true
+        scheduled_message_status_id:
+          type: integer
+          format: int32
+        event_id:
+          type: integer
+          format: int64
+          nullable: true
+        created_by:
+          type: integer
+          format: int64
+          nullable: true
+        approved_by:
+          type: integer
+          format: int64
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        is_scheduled:
+          type: boolean
+          nullable: true
+      required:
+        - id
+        - account_id
+        - title
+        - body
+    ScheduledMessageCreateRequest:
+      type: object
+      required:
+        - title
+        - body
+        - contact_list_id
+        - scheduled_at
+        - is_scheduled
+      properties:
+        title:
+          type: string
+          maxLength: 50
+        body:
+          type: string
+          maxLength: 2500
+        contact_list_id:
+          type: integer
+          format: int64
+        scheduled_at:
+          type: string
+          format: date-time
+        is_scheduled:
+          type: boolean
+        optout_text:
+          type: string
+          maxLength: 255
+          description: Optional override for footer text appended to each message.
+    ScheduledMessageUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 50
+        body:
+          type: string
+          maxLength: 2500
+        scheduled_at:
+          type: string
+          format: date-time
+        is_scheduled:
+          type: boolean
+        contact_list_id:
+          type: integer
+          format: int64
+        optout_text:
+          type: string
+          maxLength: 255
+      description: Any subset of fields to update on the scheduled message.
+    ScheduledMessageCollection:
+      allOf:
+        - $ref: '#/components/schemas/Pagination'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/ScheduledMessage'
+          required:
+            - data
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required: [message]
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+    ValidationErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: The given data was invalid.
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+      required: [message, errors]

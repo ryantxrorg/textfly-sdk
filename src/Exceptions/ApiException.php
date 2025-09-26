@@ -1,6 +1,6 @@
 <?php
 
-namespace Ryantxr\Textfly\Sdk\Exceptions;
+namespace TextFly\Sdk\Exceptions;
 
 use Exception;
 

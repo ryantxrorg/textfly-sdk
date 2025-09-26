@@ -19,7 +19,7 @@ To use the SDK, you’ll need:
 
 Initialize the client:
 
-    use Ryantxr\Textfly\Sdk\Client;
+    use TextFly\Sdk\Client;
 
     $client = new Client('https://api_endpoint', 'your_api_key');
 

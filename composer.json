@@ -12,7 +12,12 @@
     "license": "MIT",
     "autoload": {
         "psr-4": {
-            "Ryantxr\\Textfly\\Sdk\\": "src/"
+            "TextFly\\Sdk\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "TextFly\\Sdk\\Tests\\": "tests/"
         }
     },
     "authors": [
