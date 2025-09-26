@@ -16,7 +16,7 @@ class ContactsClient extends AbstractApi
         $query = array_filter([
             'page' => $page,
             'per_page' => $perPage,
-        ], static fn (mixed $value) => $value !== null);
+        ], static fn ($value) => $value !== null);
 
         $options = [];
         if (!empty($query)) {
