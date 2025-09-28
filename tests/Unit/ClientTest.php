@@ -12,6 +12,7 @@ use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\TestCase;
 use TextFly\Sdk\Client;
 use TextFly\Sdk\Exceptions\ApiException;
+use TextFly\Sdk\Exceptions\RateLimitException;
 
 class ClientTest extends TestCase
 {
@@ -139,5 +140,33 @@ class ClientTest extends TestCase
         $this->expectExceptionCode(422);
 
         $client->createContact(2, ['phone' => 'abc']);
+    }
+
+    public function testThrowsRateLimitExceptionWithRetryAfter(): void
+    {
+        $request = new Request('GET', self::BASE_URL . '/api/v1/req/2/contacts');
+        $response = new Response(429, ['Retry-After' => '120'], json_encode(['message' => 'Too Many Requests']));
+
+        $mock = new MockHandler([
+            static function () use ($request, $response) {
+                throw new RequestException('Too Many Requests', $request, $response);
+            },
+        ]);
+
+        $handlerStack = HandlerStack::create($mock);
+        $httpClient = new HttpClient(['handler' => $handlerStack]);
+
+        $client = new Client(self::BASE_URL, 'api-key', $httpClient);
+
+        try {
+            $client->getContacts(2);
+            $this->fail('Expected RateLimitException was not thrown.');
+        } catch (RateLimitException $exception) {
+            $this->assertSame(429, $exception->getCode());
+            $this->assertSame(120, $exception->getRetryAfterSeconds());
+            $retryAt = $exception->getRetryAt();
+            $this->assertNotNull($retryAt);
+            $this->assertGreaterThanOrEqual(time(), $retryAt);
+        }
     }
 }

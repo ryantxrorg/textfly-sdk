@@ -10,6 +10,7 @@ use TextFly\Sdk\Api\ContactListsClient;
 use TextFly\Sdk\Api\ContactsClient;
 use TextFly\Sdk\Api\ScheduledMessagesClient;
 use TextFly\Sdk\Exceptions\ApiException;
+use TextFly\Sdk\Exceptions\RateLimitException;
 
 class Client
 {
@@ -100,6 +101,12 @@ class Client
             $response = $exception->getResponse();
             $statusCode = $response ? $response->getStatusCode() : 0;
             $message = $this->resolveErrorMessage($exception);
+
+            if ($statusCode === 429) {
+                list($retryAfterSeconds, $retryAtTimestamp) = $this->extractRateLimitMetadata($response);
+
+                throw new RateLimitException($message, $statusCode, $exception, $retryAfterSeconds, $retryAtTimestamp);
+            }
 
             throw new ApiException($message, $statusCode, $exception);
         } catch (\Throwable $exception) {
@@ -234,5 +241,64 @@ class Client
         }
 
         return $body;
+    }
+
+    private function extractRateLimitMetadata(?\Psr\Http\Message\ResponseInterface $response): array
+    {
+        $retryAfterSeconds = null;
+        $retryAtTimestamp = null;
+
+        if ($response === null) {
+            return [$retryAfterSeconds, $retryAtTimestamp];
+        }
+
+        $retryAfterHeader = $response->getHeaderLine('Retry-After');
+        if ($retryAfterHeader !== '') {
+            $retryAfterHeader = trim($retryAfterHeader);
+            if ($this->isNumeric($retryAfterHeader)) {
+                $retryAfterSeconds = (int) ceil((float) $retryAfterHeader);
+                $retryAtTimestamp = time() + $retryAfterSeconds;
+            } else {
+                $retryAtTimestamp = strtotime($retryAfterHeader) ?: null;
+                if ($retryAtTimestamp !== null) {
+                    $retryAfterSeconds = max(0, $retryAtTimestamp - time());
+                }
+            }
+        }
+
+        if ($retryAfterSeconds === null) {
+            $resetAfterHeader = $response->getHeaderLine('X-RateLimit-Reset-After');
+            if ($resetAfterHeader !== '' && $this->isNumeric($resetAfterHeader)) {
+                $retryAfterSeconds = (int) ceil((float) $resetAfterHeader);
+                $retryAtTimestamp = time() + $retryAfterSeconds;
+            }
+        }
+
+        if ($retryAtTimestamp === null) {
+            $resetHeader = $response->getHeaderLine('X-RateLimit-Reset');
+            if ($resetHeader !== '') {
+                $resetHeader = trim($resetHeader);
+                if ($this->isNumeric($resetHeader)) {
+                    $retryAtTimestamp = (int) ceil((float) $resetHeader);
+                } else {
+                    $retryAtTimestamp = strtotime($resetHeader) ?: null;
+                }
+
+                if ($retryAtTimestamp !== null && $retryAfterSeconds === null) {
+                    $retryAfterSeconds = max(0, $retryAtTimestamp - time());
+                }
+            }
+        }
+
+        return [$retryAfterSeconds, $retryAtTimestamp];
+    }
+
+    private function isNumeric(string $value): bool
+    {
+        if ($value === '') {
+            return false;
+        }
+
+        return is_numeric($value);
     }
 }

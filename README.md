@@ -96,15 +96,22 @@ $client->scheduledMessages()->delete($accountId, $message['id']);
 
 ## Error Handling
 
-All helpers throw `TextFly\Sdk\Exceptions\ApiException` when the API responds with an error or invalid JSON. The exception code carries the HTTP status when available.
+All helpers throw `TextFly\Sdk\Exceptions\ApiException` when the API responds with an error or invalid JSON. The exception code carries the HTTP status when available. A `TextFly\Sdk\Exceptions\RateLimitException` is raised on HTTP 429 responses and exposes the retry window through `getRetryAfterSeconds()` / `getRetryAt()`.
 
 ```php
 use TextFly\Sdk\Exceptions\ApiException;
+use TextFly\Sdk\Exceptions\RateLimitException;
 
 try {
     $client->contacts()->upsert($accountId, ['phone' => 'invalid']);
 } catch (ApiException $e) {
     // Log $e->getMessage() and $e->getCode()
+}
+
+try {
+    $client->contacts()->list($accountId);
+} catch (RateLimitException $e) {
+    sleep($e->getRetryAfterSeconds() ?? 60);
 }
 ```
 
